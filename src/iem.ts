@@ -20,6 +20,10 @@ enum LogLevel {
 // deno-lint-ignore prefer-const
 let LOG_LEVEL = LogLevel.Info
 
+const setLogLevel = (level: LogLevel) => {
+    LOG_LEVEL = level
+}
+
 const logIgnored = (level: LogLevel): boolean => {
     return Math.floor(level) > Math.floor(LOG_LEVEL)
 }
@@ -118,5 +122,7 @@ export {
     type Span,
     LogLevel,
     iem,
+    logIgnored,
+    setLogLevel,
     LOG_LEVEL,
 }
