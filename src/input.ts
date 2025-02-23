@@ -51,14 +51,16 @@ const BlockInput = (id: string): Input => ({
 
 type StringOrNumber = string | number
 
+type SimpleInputType = InputType.Number
+       | InputType.PositiveNumber
+       | InputType.PositiveInteger
+       | InputType.Integer
+       | InputType.Angle
+       | InputType.Color
+       | InputType.String
+
 const SimpleInput = (
-    type: InputType.Number
-        | InputType.PositiveNumber
-        | InputType.PositiveInteger
-        | InputType.Integer
-        | InputType.Angle
-        | InputType.Color
-        | InputType.String,
+    type: SimpleInputType,
     value: StringOrNumber,
 ): Input => ({
     type,
@@ -146,6 +148,7 @@ const convertInputToItemArray = (input: Input): InputItemArray => {
 }
 
 const convertInputToArray = (input: Input): InputArray => {
+    if (!input) return undefined as unknown as InputArray
     if (input.shadowed) {
         return [3,
             convertInputToItemArray(input),
@@ -213,6 +216,7 @@ export {
     type Field,
     type FieldArray,
     type InputArray,
+    type SimpleInputType,
     InputType,
     convertInputToArray,
     SimpleInput,

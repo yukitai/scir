@@ -47,6 +47,19 @@ class Target {
         return block
     }
 
+    createConnection (blockA: Block, blockB: Block) {
+        this.blocks[blockA.id].next = blockB.id
+        this.blocks[blockB.id].parent = blockA.id
+        blockB.isTopLevel = false
+    }
+
+    createInputConnection (blockA: Block, blockB: Block): Block {
+        if (!blockB) return blockB
+        this.blocks[blockB.id].parent = blockA.id
+        blockB.isTopLevel = false
+        return blockB
+    }
+
     clearOldGeneration () {
         for (const decl of Object.values(this.builder.lockfile.names)) {
             const id = decl.id

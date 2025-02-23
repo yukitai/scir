@@ -17,7 +17,6 @@ enum LogLevel {
     Help = 2.1,
 }
 
-// deno-lint-ignore prefer-const
 let LOG_LEVEL = LogLevel.Info
 
 const setLogLevel = (level: LogLevel) => {
@@ -117,6 +116,28 @@ const iem = (
     )
 }
 
+const createSpan = (
+    lines: string[],
+    range: [Position, Position],
+    file?: string,
+    extra?: string
+): Span => {
+    return { lines, range, file, extra }
+}
+
+const emptySpan = (): Span => ({
+    lines: [""],
+    range: [[0, 0], [0, 0]],
+})
+
+const createSpanView = (
+    spans: Span[],
+    mainSpanId: number,
+    extra?: [LogLevel, string],
+): SpanView => {
+    return { spans, mainSpanId, extra }
+}
+
 export {
     type Position,
     type Span,
@@ -124,5 +145,8 @@ export {
     iem,
     logIgnored,
     setLogLevel,
+    createSpan,
+    createSpanView,
+    emptySpan,
     LOG_LEVEL,
 }

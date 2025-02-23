@@ -191,7 +191,8 @@ interface Block {
 }
 
 const blockToJson = (block: Block): object => {
-    return {
+    // deno-lint-ignore no-explicit-any
+    const json: any = {
         ...block.states,
         opcode: block.opcode,
         next: block.next,
@@ -207,6 +208,11 @@ const blockToJson = (block: Block): object => {
         shadow: block.isShadow,
         topLevel: block.isTopLevel,
     }
+    if (json.topLevel) {
+        if (!json.x) json.x = 0
+        if (!json.y) json.y = 0
+    }
+    return json
 }
 
 export {

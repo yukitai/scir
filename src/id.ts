@@ -12,7 +12,7 @@ const nextId = (): string => {
             else indexes[i + 1] = 0
         }
     }
-    return "scir!!" + id
+    return "scir_" + id
 }
 
 interface NamedId {

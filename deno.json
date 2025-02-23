@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "run-cli": "deno run --allow-env --allow-read src/cli.ts",
+    "run-cli": "deno run --allow-env --allow-read --allow-write src/cli.ts",
     "test": "deno test --allow-env --allow-read"
   },
   "imports": {

@@ -1,0 +1,227 @@
+{
+  targets: [
+    {
+      comments: {},
+      currentCostume: 1,
+      costumes: [],
+      sounds: [],
+      layerOrder: 0,
+      volume: 100,
+      isStage: false,
+      name: "Test1",
+      variables: {},
+      lists: {},
+      broadcasts: {},
+      blocks: {
+        scir_c: {
+          opcode: "control_if_else",
+          next: null,
+          parent: "scir_g",
+          inputs: { SUBSTACK2: [ 2, "scir_d" ], CONDITION: [ 2, "scir_f" ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_d: {
+          opcode: "looks_say",
+          next: "scir_e",
+          parent: "scir_c",
+          inputs: { MESSAGE: [ 1, [ 10, "Hello, World!" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_e: {
+          opcode: "looks_say",
+          next: null,
+          parent: "scir_d",
+          inputs: { MESSAGE: [ 1, [ 10, "Hello, World!" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_f: {
+          opcode: "operator_not",
+          next: null,
+          parent: "scir_c",
+          inputs: {},
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_g: {
+          opcode: "control_if_else",
+          next: null,
+          parent: null,
+          inputs: {
+            CONDITION: undefined,
+            SUBSTACK2: [ 2, "scir_c" ],
+            SUBSTACK: [ 2, "scir_h" ]
+          },
+          fields: {},
+          shadow: false,
+          topLevel: true,
+          x: 0,
+          y: 0
+        },
+        scir_h: {
+          opcode: "looks_say",
+          next: null,
+          parent: "scir_g",
+          inputs: { MESSAGE: [ 1, [ 10, "Hello, World!" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        }
+      }
+    },
+    {
+      comments: {},
+      currentCostume: 1,
+      costumes: [],
+      sounds: [],
+      layerOrder: 0,
+      volume: 100,
+      isStage: false,
+      name: "Test2",
+      variables: {},
+      lists: {},
+      broadcasts: {},
+      blocks: {
+        scir_j: {
+          opcode: "control_if_else",
+          next: null,
+          parent: "scir_n",
+          inputs: { SUBSTACK2: [ 2, "scir_k" ], CONDITION: [ 2, "scir_m" ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_k: {
+          opcode: "looks_say",
+          next: "scir_l",
+          parent: "scir_j",
+          inputs: { MESSAGE: [ 1, [ 10, "Hello, World!" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_l: {
+          opcode: "looks_say",
+          next: null,
+          parent: "scir_k",
+          inputs: { MESSAGE: [ 1, [ 10, "Hello, World!" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_m: {
+          opcode: "operator_not",
+          next: null,
+          parent: "scir_j",
+          inputs: {},
+          fields: {},
+          shadow: false,
+          topLevel: false
+        },
+        scir_n: {
+          opcode: "control_if_else",
+          next: null,
+          parent: null,
+          inputs: {
+            CONDITION: undefined,
+            SUBSTACK2: [ 2, "scir_j" ],
+            SUBSTACK: [ 2, "scir_o" ]
+          },
+          fields: {},
+          shadow: false,
+          topLevel: true,
+          x: 0,
+          y: 0
+        },
+        scir_o: {
+          opcode: "looks_say",
+          next: null,
+          parent: "scir_n",
+          inputs: { MESSAGE: [ 1, [ 10, "Hello, World!" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        }
+      }
+    },
+    {
+      isStage: true,
+      name: "Stage",
+      variables: { "`jEk@4|i[#Fk?(8x)AV.-my variable": [ "my variable", 0 ] },
+      lists: {},
+      broadcasts: {},
+      blocks: {
+        a: {
+          opcode: "event_whenflagclicked",
+          next: "b",
+          parent: null,
+          inputs: {},
+          fields: {},
+          shadow: false,
+          topLevel: true,
+          x: -109,
+          y: 59
+        },
+        b: {
+          opcode: "sensing_askandwait",
+          next: null,
+          parent: "a",
+          inputs: { QUESTION: [ 1, [ 10, "What's your name?" ] ] },
+          fields: {},
+          shadow: false,
+          topLevel: false
+        }
+      },
+      comments: {},
+      currentCostume: 0,
+      costumes: [
+        {
+          name: "",
+          dataFormat: "svg",
+          assetId: "cd21514d0531fdffb22204e0ec5ed84a",
+          md5ext: "cd21514d0531fdffb22204e0ec5ed84a.svg",
+          rotationCenterX: 240,
+          rotationCenterY: 180
+        }
+      ],
+      sounds: [],
+      volume: 100,
+      layerOrder: 0,
+      tempo: 60,
+      videoTransparency: 50,
+      videoState: "on",
+      textToSpeechLanguage: null
+    }
+  ],
+  monitors: [
+    {
+      id: "answer",
+      mode: "default",
+      opcode: "sensing_answer",
+      params: {},
+      spriteName: null,
+      value: 0,
+      width: 0,
+      height: 0,
+      x: 5,
+      y: 5,
+      visible: true,
+      sliderMin: 0,
+      sliderMax: 100,
+      isDiscrete: true
+    }
+  ],
+  extensions: [],
+  meta: {
+    semver: "3.0.0",
+    vm: "0.2.0",
+    agent: "",
+    platform: { name: "TurboWarp", url: "https://turbowarp.org/" }
+  }
+}
