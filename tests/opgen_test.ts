@@ -48,20 +48,20 @@ Deno.test({
                 lists: {},
                 broadcasts: {},
                 blocks: {
-                  "scir!!b": {
+                  "scir_b": {
                     opcode: "operator_not",
                     next: null,
-                    parent: "scir!!c",
+                    parent: "scir_c",
                     inputs: {},
                     fields: {},
                     shadow: false,
                     topLevel: false
                   },
-                  "scir!!c": {
+                  "scir_c": {
                     opcode: "control_if",
                     next: null,
                     parent: null,
-                    inputs: { CONDITION: [ 2, "scir!!b" ] },
+                    inputs: { CONDITION: [ 2, "scir_b" ] },
                     fields: {},
                     shadow: false,
                     topLevel: true,

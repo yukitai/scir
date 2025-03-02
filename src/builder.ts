@@ -1,12 +1,15 @@
 import { Block, blockToJson, Input } from "./block.ts";
+import { NewLocalVariable, Variable } from "./distributer.ts";
+import { NewGlobalVariable } from "./distributer.ts";
+import { LocalsContext } from "./distributer.ts";
 import { nextId } from "./id.ts";
 import { InputType } from "./input.ts";
 import { LockFile } from "./lock.ts";
 import { Value } from "./value.ts";
 
 type Local = {
-    variables: Record<string, Value>,
-    lists: Record<string, Value>,
+    variables: Record<string, [string, Value]>,
+    lists: Record<string, [string, Value[]]>,
     broadcasts: Record<string, Value>,
 }
 
@@ -117,6 +120,7 @@ class Builder {
     lockfile: LockFile
     monitors: object
     meta: object
+    localsContext: LocalsContext | null
 
     constructor (lockfile: LockFile) {
         this.sprites = []
@@ -131,6 +135,7 @@ class Builder {
             agent: "",
         }
         this.monitors = []
+        this.localsContext = null
     }
 
     clearOldGeneration () {
@@ -148,6 +153,18 @@ class Builder {
             extensions: this.extensions,
             meta: this.meta,
         }
+    }
+
+    NewVariable (name: string): Variable {
+        let variable: Variable
+        if (this.localsContext === null) {
+            variable = NewGlobalVariable(this, name)
+        } else {
+            variable = NewLocalVariable(this.localsContext, name)
+        }
+        this.current.locals.variables[variable.id] = [variable.name, ""]
+        return variable
+
     }
 }
 

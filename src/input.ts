@@ -76,16 +76,18 @@ const BroadcastInput = (broadcast: NamedId): Input => ({
     isShadow: false,
 })
 
-const VariableInput = (variable: NamedId, x = 0, y = 0): Input => ({
-    type: InputType.Broadcast,
-    array: [variable.name, variable.id, String(x), String(y)],
+const VariableInput = (variable: NamedId, x?: number, y?: number): Input => ({
+    type: InputType.Variable,
+    array: x ? [variable.name, variable.id, String(x), String(y)]
+             : [variable.name, variable.id],
     shadowed: null,
     isShadow: false,
 })
 
-const ListInput = (list: NamedId, x = 0, y = 0): Input => ({
-    type: InputType.Broadcast,
-    array: [list.name, list.id, String(x), String(y)],
+const ListInput = (list: NamedId, x?: number, y?: number): Input => ({
+    type: InputType.List,
+    array: x ? [list.name, list.id, String(x), String(y)]
+             : [list.name, list.id],
     shadowed: null,
     isShadow: false,
 })
@@ -108,6 +110,9 @@ type InputItemArray = [InputType.Number
                     | InputType.List,
                     string, string,
                     number, number]
+                | [InputType.Variable
+                    | InputType.List,
+                    string, string]
                 | string
 
 type InputArray = [1, InputItemArray] // Shadow
@@ -135,11 +140,19 @@ const convertInputToItemArray = (input: Input): InputItemArray => {
         case InputType.Broadcast:
             return [InputType.Broadcast, input.array[0], input.array[1]]
         case InputType.Variable:
+            if (!input.array[2]) {
+                return [InputType.Variable,
+                        input.array[0], input.array[1]]
+            }
             return [InputType.Variable,
                     input.array[0], input.array[1],
                     parseFloat(input.array[2]),
                     parseFloat(input.array[3])]
         case InputType.List:
+            if (!input.array[2]) {
+                return [InputType.List,
+                        input.array[0], input.array[1]]
+            }
             return [InputType.List,
                     input.array[0], input.array[1],
                     parseFloat(input.array[2]),

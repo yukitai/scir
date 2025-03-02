@@ -1,9 +1,10 @@
 import { Block, BlockOpcode, Input } from "../block.ts";
 import { Builder } from "../builder.ts";
 import { nextId } from "../id.ts";
-import { Span } from "../iem.ts";
+import { createSpanView, iem, LogLevel, Span } from "../iem.ts";
 import { BlockInput } from "../input.ts";
 import { IR } from "../ir.ts";
+import { IRError } from "./error.ts";
 
 class IRBoolean extends IR {
 
@@ -14,8 +15,29 @@ class IRBoolean extends IR {
         this.value = value
     }
 
-    override generate(_builder: Builder): Block {
-        throw ""
+    override generate(builder: Builder): Block {
+        iem(
+            LogLevel.Error,
+            `internal compiler error: try to generate top-level inputs`,
+            createSpanView(
+                [
+                    {
+                        ...this.span,
+                        extra: "error might occurs here"
+                    }
+                ],
+                0,
+                [
+                    LogLevel.Help,
+                    "this is an ICE, "
+                    + "which mostly is a bug of compiler. "
+                    + "you can open an issue with this message at "
+                    + "https://github.com/yukitai/scir "
+                    + "when you meet this"
+                ]
+            )
+        )
+        return new IRError(this.span).generate(builder)
     }
 
     override generateInput(builder: Builder, parent: Block): Input {

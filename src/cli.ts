@@ -1,74 +1,65 @@
-import { BlockOpcode } from "./block.ts";
-import { Target } from "./builder.ts";
-import { createSpan } from "./iem.ts";
-import { InputType } from "./input.ts";
-import { IRBoolean } from "./irs/boolean.ts";
-import { IRBranch } from "./irs/branch.ts";
-import { IRCommon } from "./irs/common.ts";
-import { IRConstant } from "./irs/constant.ts";
-import { IRStack } from "./irs/stack.ts";
-import { exportSb3 } from "./sb3.ts";
-import { loadSb3 } from "./sb3.ts";
+// import { StoreType } from "./compiler/layout.ts";
+// import { LayoutType } from "./compiler/layout.ts";
+// import { TypeLayout } from "./compiler/layout.ts";
+// import { emptySpan, hasError } from "./iem.ts";
+// import { InputType } from "./input.ts";
+// import { IRCommon } from "./irs/common.ts";
+// import { IRConstant } from "./irs/constant.ts";
+// import { IRStack } from "./irs/stack.ts";
+// import { GetVariable, SetVariable } from "./irs/variable.ts";
+// import { exportSb3 } from "./sb3.ts";
+// import { loadSb3 } from "./sb3.ts";
+// 
+// const sb3 = await loadSb3("./template/Template2.sb3")
+// 
+// const typeBasic = {
+//     type: LayoutType.Variable,
+//     name: "HelloFromScir",
+//     position: {
+//         type: StoreType.Variable,
+//         start: 0,
+//         offsetSize: 1,
+//     },
+//     isSized () { return true },
+//     size () { return 1 },
+// } as TypeLayout
+// 
+// const irconstant = new IRConstant(InputType.String, "Hello, World!", emptySpan())
+// 
+// const irvar = new GetVariable(typeBasic, emptySpan())
+// const irset = new SetVariable(typeBasic, irconstant, emptySpan())
+// 
+// const ircommon = new IRCommon(
+//     "looks_say",
+//     {},
+//     {
+//         MESSAGE: irvar,
+//     },
+//     emptySpan(),
+// )
+// 
+// const irstack = new IRStack([
+//     irset,
+//     ircommon,
+//     ircommon,
+// ], emptySpan())
+// 
+// irstack.generate(sb3.builder)
+// 
+// if (!hasError()) {
+//     console.dir(sb3.builder.json(), { depth: 10 })
+//     exportSb3(sb3, "./export.sb3")
+// }
 
-const sb3 = await loadSb3("./template/Template2.sb3")
+import { Lexer } from "./compiler/lexer.ts";
 
-const irtrue = new IRBoolean(true, createSpan([""],[[0,0],[0,0]]))
-const irfalse = new IRBoolean(false, createSpan([""],[[0,0],[0,0]]))
+const code = `\
+#[event.KeyPressed("any")]
+func main() {
+    looks.Say("Hello, World!")
+}`
 
-const irconstant = new IRConstant(
-    InputType.String,
-    "Hello, World!",
-    createSpan([""],[[0,0],[0,0]]),
-)
+const lexer = new Lexer(code, "main.scir")
 
-const ircommon = new IRCommon(
-    BlockOpcode.Looks_Say,
-    {},
-    {
-        MESSAGE: irconstant
-    },
-    createSpan([""],[[0,0],[0,0]]),
-)
-
-const irbranch = new IRBranch(
-    [
-        {
-            condition: irfalse,
-            substack: new IRStack(
-                [
-                    ircommon,
-                ],
-                createSpan([""],[[0,0],[0,0]])
-            ),
-        },
-        {
-            condition: irtrue,
-            substack: new IRStack(
-                [],
-                createSpan([""],[[0,0],[0,0]])
-            ),
-        },
-    ],
-    new IRStack(
-        [
-            ircommon,
-            ircommon,
-        ],
-        createSpan([""],[[0,0],[0,0]])
-    ),
-    createSpan([""],[[0,0],[0,0]])
-)
-
-const sp1 = new Target(sb3.builder, "Test1")
-sb3.builder.sprites.push(sp1)
-sb3.builder.current = sp1 
-irbranch.generate(sb3.builder)
-
-const sp2 = new Target(sb3.builder, "Test2")
-sb3.builder.sprites.push(sp2)
-sb3.builder.current = sp2 
-irbranch.generate(sb3.builder)
-
-console.dir(sb3.builder.json(), { depth: 10 })
-
-exportSb3(sb3, "./export.sb3")
+const tokens = [...lexer]
+tokens.forEach((it) => console.dir(it, { depth: 0 }))

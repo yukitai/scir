@@ -10,6 +10,16 @@ interface Span {
     extra?: string,
 }
 
+/**
+ * safety: `a < b`
+ */
+const mergeSpan = (a: Span, b: Span): Span => {
+    return {
+        lines: a.lines,
+        range: [a.range[0], b.range[1]],
+    }
+}
+
 enum LogLevel {
     Error = 0,
     Warn = 1,
@@ -83,6 +93,10 @@ interface SpanView {
     extra?: [LogLevel, string],
 }
 
+let HAS_ERROR = false
+
+const hasError = () => HAS_ERROR
+
 const iem = (
     level: LogLevel,
     messageProvider: string | (() => string),
@@ -114,6 +128,9 @@ const iem = (
         exLeadeer,
         exMessage,
     )
+
+    if (level === LogLevel.Error)
+        HAS_ERROR = true
 }
 
 const createSpan = (
@@ -148,5 +165,8 @@ export {
     createSpan,
     createSpanView,
     emptySpan,
+    hasError,
+    mergeSpan,
     LOG_LEVEL,
+    HAS_ERROR,
 }

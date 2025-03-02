@@ -1,0 +1,16 @@
+package looks
+
+#[inline]
+#[no_export]
+func Say(msg string) {
+	__opcode__(
+		"looks_say",
+		{ MESSAGE: string },
+		{}
+	)
+}
+
+#[event.Start()]
+func main() {
+	Say("Hello, World!")
+}
