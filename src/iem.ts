@@ -20,6 +20,10 @@ const mergeSpan = (a: Span, b: Span): Span => {
     }
 }
 
+const previewSpanShort = (span: Span): string => {
+    return `Span([${span.range[0]}], [${span.range[1]}])`
+}
+
 enum LogLevel {
     Error = 0,
     Warn = 1,
@@ -155,6 +159,10 @@ const createSpanView = (
     return { spans, mainSpanId, extra }
 }
 
+const indented = (indent: number, text: string): string => {
+    return "  ".repeat(indent) + text
+}
+
 export {
     type Position,
     type Span,
@@ -167,6 +175,8 @@ export {
     emptySpan,
     hasError,
     mergeSpan,
+    previewSpanShort,
+    indented,
     LOG_LEVEL,
     HAS_ERROR,
 }

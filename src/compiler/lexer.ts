@@ -1,4 +1,4 @@
-import { createSpan, createSpanView, iem, LogLevel } from "../iem.ts";
+import { createSpan, createSpanView, iem, LogLevel, previewSpanShort } from "../iem.ts";
 import { Position, Span } from "../iem.ts";
 import { Stream } from "./stream.ts";
 
@@ -21,6 +21,7 @@ enum TokenType {
     Colon = "Colon",
     Semi = "Semi",
     Assign = "Assign",
+    ShortDef = "ShortDef",
     Dot = "Dot",
 
     KPackage = "KPackage",
@@ -41,6 +42,7 @@ enum TokenType {
     KStruct = "KStruct",
     KEnum = "KEnum",
     KType = "KType",
+    KNil = "KNil",
 
     TInt = "TInt",
     TFloat = "TFloat",
@@ -70,6 +72,10 @@ type Token = {
     span: Span,
 }
 
+const previewToken = (token: Token): string => {
+    return `${token.type}(\`${token.value}\`, ${previewSpanShort(token.span)})`
+}
+
 class Lexer extends Stream<string> {
 
     cursor: Position
@@ -85,11 +91,19 @@ class Lexer extends Stream<string> {
 
     getSpan (cursor?: Position) {
         const nowCursor = this.getCursor()
-        return createSpan(
-            this.lines,
-            [cursor ?? nowCursor, [nowCursor[0], nowCursor[1] + 1]],
-            this.file,
-        )
+        if (cursor) {
+            return createSpan(
+                this.lines,
+                [cursor, nowCursor],
+                this.file,
+            )
+        } else {
+            return createSpan(
+                this.lines,
+                [nowCursor, [nowCursor[0], nowCursor[1] + 1]],
+                this.file,
+            )
+        }
     }
 
     unexpectError (expect: string, actual: string, span: Span) {
@@ -222,11 +236,20 @@ class Lexer extends Stream<string> {
                 value: ".",
                 span: this.getSpan(start),
             }
-            case ":": return {
-                type: TokenType.Colon,
-                value: ":",
-                span: this.getSpan(start),
-            }
+            case ":": 
+                if (this.peek() === "=") {
+                    this.ignore(1)
+                    return {
+                        type: TokenType.ShortDef,
+                        value: ":=",
+                        span: this.getSpan(start),
+                    }
+                }
+                return {
+                    type: TokenType.Colon,
+                    value: ":",
+                    span: this.getSpan(start),
+                }
             case ",": return {
                 type: TokenType.Comma,
                 value: ",",
@@ -439,6 +462,9 @@ class Lexer extends Stream<string> {
                 case "false": 
                     tokenType = TokenType.KFalse
                     break
+                case "nil": 
+                    tokenType = TokenType.KNil
+                    break
             }
             return {
                 type: tokenType,
@@ -464,4 +490,5 @@ export {
     type Token,
     TokenType,
     Lexer,
+    previewToken,
 }

@@ -5,6 +5,7 @@
 // import { InputType } from "./input.ts";
 // import { IRCommon } from "./irs/common.ts";
 // import { IRConstant } from "./irs/constant.ts";
+// import { IRArgument, IRCall, IRDefinition } from "./irs/definition.ts";
 // import { IRStack } from "./irs/stack.ts";
 // import { GetVariable, SetVariable } from "./irs/variable.ts";
 // import { exportSb3 } from "./sb3.ts";
@@ -44,22 +45,66 @@
 //     ircommon,
 // ], emptySpan())
 // 
-// irstack.generate(sb3.builder)
+// const irdef = new IRDefinition(
+//     "HelloFunction",
+//     {
+//         "param1": typeBasic,
+//         "param2": typeBasic,
+//     },
+//     irstack,
+//     false,
+//     emptySpan(),
+// )
+// 
+// const irarg = new IRArgument(irdef, "param1", emptySpan())
+// 
+// const ircall = new IRCall(
+//     irdef,
+//     [irconstant, irarg],
+//     emptySpan(),
+// )
+// 
+// irstack.blocks.push(ircall)
+// 
+// irdef.generate(sb3.builder)
 // 
 // if (!hasError()) {
 //     console.dir(sb3.builder.json(), { depth: 10 })
 //     exportSb3(sb3, "./export.sb3")
 // }
 
+import { printf } from "jsr:@std/fmt/printf";
 import { Lexer } from "./compiler/lexer.ts";
+import { Parser } from "./compiler/parser.ts";
+import { bold, red } from "jsr:@std/fmt/colors";
 
 const code = `\
-#[event.KeyPressed("any")]
-func main() {
-    looks.Say("Hello, World!")
+package main
+
+import (
+    "looks"
+)
+
+func main() int {
+    Say("Hello, World!")
+    return 0
 }`
 
-const lexer = new Lexer(code, "main.scir")
+const filename = "main.scir"
 
-const tokens = [...lexer]
-tokens.forEach((it) => console.dir(it, { depth: 0 }))
+const lexer = new Lexer(code, filename)
+
+const parser = new Parser([...lexer])
+
+const ast = parser.parse()
+
+if (parser.hasError) {
+    printf(
+        "%s: at least 1 error found, cannot build `%s`\n",
+        bold(red("error")),
+        filename,
+    )
+    Deno.exit(10)
+}
+
+console.log(ast!.preview())
