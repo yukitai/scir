@@ -64,12 +64,12 @@ type Item = VariableDeclaration
 abstract class VariableDeclaration extends Stmt {
 
     tok_name: Token
-    type?: Type
+    type: Type
     value: Expr
 
     constructor (
         tok_name: Token,
-        type: Type | undefined,
+        type: Type,
         value: Expr,
         span: Span,
     ) {
@@ -91,7 +91,7 @@ class LongVariableDeclaration extends VariableDeclaration {
     constructor (
         tok_var: Token,
         tok_name: Token,
-        type: Type | undefined,
+        type: Type,
         tok_assign: Token,
         value: Expr,
         span: Span,
@@ -118,7 +118,7 @@ class ShortVariableDeclaration extends VariableDeclaration {
 
     constructor (
         tok_name: Token,
-        type: Type | undefined,
+        type: Type,
         tok_shortdef: Token,
         value: Expr,
         span: Span,
@@ -146,6 +146,62 @@ abstract class Type extends Node {
     isSized(): boolean {
         return this.size() !== null
     }
+
+    override generate(): IR {
+        throw new Error("unreachable")
+    }
+}
+
+const isUnresolvedType = (type: Type): boolean => {
+    return type instanceof UnknownType && type.resolved === null
+}
+
+const getResolvedType = (type: Type): Type => {
+    if (type instanceof UnknownType && type.resolved !== null)
+        return type.resolved
+    return type
+}
+class UnknownType extends Type {
+
+    resolved: Type | null
+    
+    constructor (span: Span) {
+        super(span)
+        this.resolved = null
+    }
+
+    override formatType(): string {
+        if (this.resolved)
+            return this.resolved.formatType()
+        return "?"
+    }
+
+    override size(): number | null {
+        return null
+    }
+
+    override requireTypeSatisfied(type: Type): boolean {
+        if (isUnresolvedType(type) && this.resolved) {
+            (type as UnknownType).resolved = this.resolved
+            return true
+        }
+        type = getResolvedType(type)
+        if (type instanceof UnknownType) {
+            return true
+        }
+        if (!this.resolved) {
+            this.resolved = type
+            return true
+        }
+        return this.resolved.requireTypeSatisfied(type)
+    }
+
+    override preview(indent: number): string {
+        if (!this.resolved) return indented(indent, "Type(?)")
+        return indented(indent, "Type(\n")
+             + this.resolved.preview(indent + 1) + ",\n"
+             + indented(indent, ")")
+    }
 }
 
 class BinaryType extends Type {
@@ -169,14 +225,15 @@ class BinaryType extends Type {
     }
 
     override requireTypeSatisfied (type: Type): boolean {
+        if (isUnresolvedType(type)) {
+            (type as UnknownType).resolved = this
+            return true
+        }
+        type = getResolvedType(type)
         if (type instanceof BinaryType) {
-            return type.tok_name.value === this.tok_name.value
+            return type.tok_name.type === this.tok_name.type
         }
         return false
-    }
-
-    override generate(): IR {
-        throw new Error("unreachable")
     }
 
     override preview(indent: number): string {
@@ -205,11 +262,12 @@ class NilType extends Type {
     }
 
     override requireTypeSatisfied (type: Type): boolean {
+        if (isUnresolvedType(type)) {
+            (type as UnknownType).resolved = this
+            return true
+        }
+        type = getResolvedType(type)
         return type instanceof NilType
-    }
-
-    override generate(): IR {
-        throw new Error("Method not implemented.")
     }
 
     override preview(indent: number): string {
@@ -504,8 +562,191 @@ class Attribute extends Node {
 type Value = string | number | boolean
 
 abstract class Expr extends Node {
+
+    type: Type
+
+    constructor (span: Span) {
+        super(span)
+        this.type = new UnknownType(span)
+    }
+
     abstract isConst(): boolean
     abstract tryEvaluate(): Value | null
+}
+
+class ExprAssign extends Expr {
+
+    left: Expr
+    tok_assign: Token
+    right: Expr
+
+    constructor (
+        left: Expr,
+        tok_assign: Token,
+        right: Expr,
+        span: Span,
+    ) {
+        super(span)
+        this.left = left
+        this.tok_assign = tok_assign
+        this.right = right
+    }
+
+    override isConst(): boolean {
+        return false
+    }
+
+    override tryEvaluate(): Value | null {
+        return null
+    }
+
+    override generate(): IR {
+        throw new Error("Method not implemented.")
+    }
+
+    override preview(indent: number): string {
+        return indented(indent, "ExprAssign(\n")
+             + indented(indent + 1, "left:\n")
+             + this.left.preview(indent + 2) + ",\n"
+             + indented(indent + 1, `tok_assign: ${previewToken(this.tok_assign)}`) + ",\n"
+             + indented(indent + 1, "right:\n")
+             + this.right.preview(indent + 2) + ",\n"
+             + indented(indent + 1, "type:\n")
+             + this.type.preview(indent + 2) + ",\n"
+             + indented(indent, ")")
+    }
+}
+
+class ExprDot extends Expr {
+
+    left: Expr
+    tok_dot: Token
+    right: Token
+
+    constructor (
+        left: Expr,
+        tok_dot: Token,
+        right: Token,
+        span: Span,
+    ) {
+        super(span)
+        this.left = left
+        this.tok_dot = tok_dot
+        this.right = right
+    }
+
+    override isConst(): boolean {
+        return false
+    }
+
+    override tryEvaluate(): Value | null {
+        return null
+    }
+
+    override generate(): IR {
+        throw new Error("Method not implemented.")
+    }
+
+    override preview(indent: number): string {
+        return indented(indent, "ExprAssign(\n")
+             + indented(indent + 1, "left:\n")
+             + this.left.preview(indent + 2) + ",\n"
+             + indented(indent + 1, `tok_dot: ${previewToken(this.tok_dot)}`) + ",\n"
+             + indented(indent + 1, `right:   ${previewToken(this.right)}`) + ",\n"
+             + indented(indent + 1, "type:\n")
+             + this.type.preview(indent + 2) + ",\n"
+             + indented(indent, ")")
+    }
+}
+
+class ExprBinaryOp extends Expr {
+
+    left: Expr
+    op: Token
+    right: Expr
+
+    constructor (
+        left: Expr,
+        op: Token,
+        right: Expr,
+        span: Span,
+    ) {
+        super(span)
+        this.left = left
+        this.op = op
+        this.right = right
+    }
+
+    override isConst(): boolean {
+        return this.left.isConst() && this.right.isConst()
+    }
+
+    override tryEvaluate(): Value | null {
+        const left = this.left.tryEvaluate()
+        const right = this.right.tryEvaluate()
+        if (left === null || right === null) {
+            return null
+        }
+        return left // TODO: implement binary op
+    }
+
+    override generate(): IR {
+        throw new Error("Method not implemented.")
+    }
+
+    override preview(indent: number): string {
+        return indented(indent, "ExprBinaryOp(\n")
+             + indented(indent + 1, "left:\n")
+             + this.left.preview(indent + 2) + ",\n"
+             + indented(indent + 1, `op: ${previewToken(this.op)}`) + ",\n"
+             + indented(indent + 1, "right:\n")
+             + this.right.preview(indent + 2) + ",\n"
+             + indented(indent + 1, "type:\n")
+             + this.type.preview(indent + 2) + ",\n"
+             + indented(indent, ")")
+    }
+}
+
+class ExprUnaryOp extends Expr {
+
+    op: Token
+    expr: Expr
+
+    constructor (
+        op: Token,
+        expr: Expr,
+        span: Span,
+    ) {
+        super(span)
+        this.op = op
+        this.expr = expr
+    }
+    
+    override isConst(): boolean {
+        return this.expr.isConst()
+    }
+
+    override tryEvaluate(): Value | null {
+        const value = this.expr.tryEvaluate()
+        if (value === null) {
+            return null
+        }
+        return value // TODO: implement binary op
+    }
+
+    override generate(): IR {
+        throw new Error("Method not implemented.")
+    }
+
+    override preview(indent: number): string {
+        return indented(indent, "ExprUnaryOp(\n")
+             + indented(indent + 1, `op: ${previewToken(this.op)}`) + ",\n"
+             + indented(indent + 1, "expr:\n")
+             + this.expr.preview(indent + 2) + ",\n"
+             + indented(indent + 1, "type:\n")
+             + this.type.preview(indent + 2) + ",\n"
+             + indented(indent, ")")
+    }
 }
 
 type ExprBinary = ExprLiteral | ExprVariable | ExprGroup
@@ -554,7 +795,11 @@ abstract class ExprLiteral extends Expr {
     }
 
     override preview(indent: number): string {
-        return indented(indent, `ExprLiteral(${previewToken(this.value)})`)
+        return indented(indent, `ExprLiteral(\n`)
+             + indented(indent + 1, `value: ${previewToken(this.value)}`) + ",\n"
+             + indented(indent + 1, `type:\n`)
+             + this.type.preview(indent + 2) + ",\n"
+             + indented(indent, ")")
     }
 }
 
@@ -616,6 +861,8 @@ class ExprGroup extends Expr {
              + indented(indent + 1, "expr:\n")
              + this.expr.preview(indent + 2) + ",\n"
              + indented(indent + 1, `tok_rparen: ${previewToken(this.tok_lparen)}`) + ",\n"
+             + indented(indent + 1, "type:\n")
+             + this.type.preview(indent + 2) + ",\n"
              + indented(indent, ")")
     }
 
@@ -625,6 +872,53 @@ class ExprGroup extends Expr {
 
     override tryEvaluate(): Value | null {
         return this.expr.tryEvaluate()
+    }
+}
+
+class ExprCall extends Expr {
+
+    callee: Expr
+    tok_lparen: Token
+    args: Expr[]
+    tok_rparen: Token
+
+    constructor (
+        callee: Expr,
+        tok_lparen: Token,
+        args: Expr[],
+        tok_rparen: Token,
+        span: Span,
+    ) {
+        super(span)
+        this.callee = callee
+        this.tok_lparen = tok_lparen
+        this.args = args
+        this.tok_rparen = tok_rparen
+    }
+
+    override isConst(): boolean {
+        return false
+    }
+
+    override tryEvaluate(): Value | null {
+        return null
+    }
+    override generate(): IR {
+        throw new Error("Method not implemented.")
+    }
+
+    override preview(indent: number): string {
+        return indented(indent, "ExprCall(\n")
+             + indented(indent + 1, "callee:\n")
+             + this.callee.preview(indent + 2) + ",\n"
+             + indented(indent + 1, `tok_lparen: ${previewToken(this.tok_lparen)}`) + ",\n"
+             + indented(indent + 1, "args: [\n")
+             + this.args.map((arg) => arg.preview(indent + 2) + ",").join("\n") + "\n"
+             + indented(indent + 1, "]") + ",\n"
+             + indented(indent + 1, `tok_rparen: ${previewToken(this.tok_rparen)}`) + ",\n"
+             + indented(indent + 1, "type:\n")
+             + this.type.preview(indent + 2) + ",\n"
+             + indented(indent, ")")
     }
 }
 
@@ -680,4 +974,10 @@ export {
     ExprLiteralString,
     ExprVariable,
     ExprGroup,
+    ExprBinaryOp,
+    ExprAssign,
+    ExprUnaryOp,
+    ExprCall,
+    ExprDot,
+    UnknownType,
 }

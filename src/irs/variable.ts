@@ -1,7 +1,7 @@
 import { Block } from "../block.ts";
 import { Builder } from "../builder.ts";
 import { IR } from "../ir.ts";
-import { LayoutType, StoreType, TypeLayout, VariableLayout } from "../compiler/layout.ts";
+import { LayoutType, StoreType, TypeLayout } from "../compiler/layout.ts";
 import { createSpanView, iem, LogLevel, Span } from "../iem.ts";
 import { IRError } from "./error.ts";
 import { Input, VariableInput } from "../input.ts";
@@ -65,9 +65,7 @@ class GetVariable extends IR {
         const mode = getMode(this.variable.type, this.variable.position.type)
         switch (mode) {
             case getMode(LayoutType.Variable, StoreType.Variable): {
-                const variable = builder.NewVariable(
-                    (this.variable as VariableLayout).name
-                )
+                const variable = this.variable.raw[0]
                 return VariableInput(variable)
             }
         }
@@ -111,9 +109,7 @@ class SetVariable extends IR {
         const mode = getMode(this.variable.type, this.variable.position.type)
         switch (mode) {
             case getMode(LayoutType.Variable, StoreType.Variable): {
-                const variable = builder.NewVariable(
-                    (this.variable as VariableLayout).name
-                )
+                const variable = this.variable.raw[0]
                 const block = builder.current.newBlock({
                     id: nextId(),
                     opcode: "data_setvariableto",

@@ -1,3 +1,5 @@
+import { Variable } from "../distributer.ts";
+
 enum StoreType {
     Variable,
     List,
@@ -17,10 +19,11 @@ type ValueStorePosition = {
 }
 
 interface TypeLayout {
-    type: LayoutType,
+    type: LayoutType
     position: ValueStorePosition
     isSized(): boolean
     size(): number
+    raw: Variable[]
 }
 
 interface VariableLayout extends TypeLayout {

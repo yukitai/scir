@@ -1,0 +1,1 @@
+export const DEBUG = Deno.env.get("DEBUG") === "true"

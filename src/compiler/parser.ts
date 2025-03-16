@@ -1,7 +1,8 @@
 import { mergeSpan } from "../iem.ts";
 import { createSpanView, LogLevel } from "../iem.ts";
 import { iem } from "../iem.ts";
-import { ArgumentGroup, ArgumentList, Attribute, BinaryType, Block, Expr, ExprBinary, ExprGroup, ExprLiteralBool, ExprLiteralNumber, ExprLiteralString, ExprStmt, ExprVariable, File, FunctionDeclaration, ImportStmt, Item, NilType, ReturnStmt, Stmt, Type } from "./ast.ts";
+import { LongVariableDeclaration } from "./ast.ts";
+import { ArgumentGroup, ArgumentList, Attribute, UnknownType, BinaryType, Block, Expr, ExprAssign, ExprBinary, ExprBinaryOp, ExprCall, ExprDot, ExprGroup, ExprLiteralBool, ExprLiteralNumber, ExprLiteralString, ExprStmt, ExprUnaryOp, ExprVariable, File, FunctionDeclaration, ImportStmt, Item, NilType, ReturnStmt, Stmt, Type } from "./ast.ts";
 import { Token, TokenType } from "./lexer.ts";
 import { Stream } from "./stream.ts";
 
@@ -199,7 +200,26 @@ class Parser extends Stream<Token> {
         if (tok_var === null) return null
         const tok_name = this.expectNextOrError(TokenType.Identifier)
         if (tok_name === null) return null
-        return null
+        let type: Type | null = null
+        let tok_assign: Token | null
+        if ((tok_assign = this.expectNext(TokenType.Assign)) === null) {
+            type = this.parseType()
+            tok_assign = this.expectNextOrError(TokenType.Assign, "Assign or Type")
+            if (tok_assign === null) return null
+        }
+        if (type === null) {
+            type = new UnknownType(tok_name.span)
+        }
+        const expr = this.parseExpr()
+        if (expr === null) return null
+        return new LongVariableDeclaration(
+            tok_var,
+            tok_name,
+            type,
+            tok_assign,
+            expr,
+            mergeSpan(tok_var.span, expr.span),
+        )
     }
 
     parseArgumentList (): ArgumentList | null {
@@ -307,7 +327,259 @@ class Parser extends Stream<Token> {
     }
 
     parseExpr (required = true): Expr | null {
-        return this.parseExprBinary(required)
+        return this.parseExprAssign(required)
+    }
+
+    parseExprAssign (required = true): Expr | null {
+        let left: Expr | null = this.parseExprOr(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.Assign: {
+                    this.ignore(1)
+                    const right = this.parseExpr(required)
+                    if (right === null) return null
+                    left = new ExprAssign(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprOr (required: boolean): Expr | null {
+        let left = this.parseExprAnd(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OOr: {
+                    this.ignore(1)
+                    const right = this.parseExprAnd(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprAnd (required: boolean): Expr | null {
+        let left = this.parseExprEqual(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OAnd: {
+                    this.ignore(1)
+                    const right = this.parseExprEqual(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprEqual (required: boolean): Expr | null {
+        let left = this.parseExprCompare(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OEq:
+                case TokenType.ONe: {
+                    this.ignore(1)
+                    const right = this.parseExprCompare(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprCompare (required: boolean): Expr | null {
+        let left = this.parseExprAdd(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OLt:
+                case TokenType.OLe:
+                case TokenType.OGt:
+                case TokenType.OGe: {
+                    this.ignore(1)
+                    const right = this.parseExprAdd(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprAdd (required: boolean): Expr | null {
+        let left = this.parseExprMul(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OAdd:
+                case TokenType.OSub: {
+                    this.ignore(1)
+                    const right = this.parseExprMul(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprMul (required: boolean): Expr | null {
+        let left = this.parseExprPow(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OMul:
+                case TokenType.ODiv:
+                case TokenType.OMod: {
+                    this.ignore(1)
+                    const right = this.parseExprPow(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprPow (required: boolean): Expr | null {
+        let left: Expr | null = this.parseExprUnary(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OPow: {
+                    this.ignore(1)
+                    const right = this.parseExprUnary(required)
+                    if (right === null) return null
+                    left = new ExprBinaryOp(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
+    }
+
+    parseExprUnary (required: boolean): Expr | null {
+        const operators = []
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.OAdd:
+                case TokenType.OSub:
+                case TokenType.ONot: {
+                    operators.push(this.next())
+                    break
+                }
+                default: break outer
+            }
+        }
+        const left = this.parseExprCall(required)
+        if (left === null) return null
+        return operators.reduceRight((expr, operator) => {
+            return new ExprUnaryOp(
+                operator, expr,
+                mergeSpan(operator.span, expr.span),
+            )
+        }, left)
+    }
+
+    parseExprCall (required: boolean): Expr | null {
+        let left: Expr | null = this.parseExprBinary(required)
+        if (left === null) return null
+        outer: while (this.hasNext()) {
+            const operator = this.peek()
+            switch (operator.type) {
+                case TokenType.Dot: {
+                    this.ignore(1)
+                    const right = this.expectNextOrError(TokenType.Identifier)
+                    if (right === null) return null
+                    left = new ExprDot(
+                        left, operator, right,
+                        mergeSpan(left.span, right.span),
+                    )
+                    break
+                }
+                case TokenType.LParen: {
+                    const tok_lparen = this.next()
+                    const args = []
+                    while (this.hasNext()) {
+                        const curr = this.peek()
+                        if (curr.type === TokenType.RParen)
+                            break
+                        const arg = this.parseExpr(required)
+                        if (arg === null) return null
+                        args.push(arg)
+                        if (!this.expectNext(TokenType.Comma)) {
+                            if (this.peek().type !== TokenType.RParen)
+                                return null
+                        }
+                    }
+                    const tok_rparen = this.expectNextOrError(TokenType.RParen, "Comma or RParen")
+                    if (tok_rparen === null) return null
+                    left = new ExprCall(
+                        left, tok_lparen, args, tok_rparen,
+                        mergeSpan(left.span, tok_rparen.span),
+                    )
+                    break
+                }
+                default: break outer
+            }
+        }
+        return left
     }
 
     parseExprBinary (required: boolean): ExprBinary | null {

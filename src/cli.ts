@@ -77,6 +77,7 @@ import { printf } from "jsr:@std/fmt/printf";
 import { Lexer } from "./compiler/lexer.ts";
 import { Parser } from "./compiler/parser.ts";
 import { bold, red } from "jsr:@std/fmt/colors";
+import { Analyzer } from "./compiler/analyzer.ts";
 
 const code = `\
 package main
@@ -85,9 +86,8 @@ import (
     "looks"
 )
 
-func main() int {
-    Say("Hello, World!")
-    return 0
+func main() {
+    var typeDisplay int = "114514" + 1919810
 }`
 
 const filename = "main.scir"
@@ -107,4 +107,12 @@ if (parser.hasError) {
     Deno.exit(10)
 }
 
-console.log(ast!.preview())
+// console.log(ast!.preview())
+
+const analyzer = new Analyzer(ast!)
+analyzer.analyze()
+if (!analyzer.hasError) {
+    console.log(ast!.preview())
+}
+
+// console.log(ast!.generate())

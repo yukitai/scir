@@ -1,5 +1,6 @@
 import { brightRed, brightGreen, brightYellow, brightWhite, cyan, bold, dim, yellow } from "jsr:@std/fmt/colors"
 import { printf, sprintf } from "jsr:@std/fmt/printf"
+import { DEBUG } from "./env.ts";
 
 type Position = [number, number]
 
@@ -107,6 +108,9 @@ const iem = (
     span: SpanView,
 ) => {
     if (logIgnored(level)) return
+    if (DEBUG) {
+        printf("(%s %s)\n", bold(yellow("@:")), cyan(new Error().stack ?? ""))
+    }
     const leader = getLeader(level)
     const message = typeof messageProvider === "function"
                     ? messageProvider()
