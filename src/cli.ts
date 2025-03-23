@@ -76,8 +76,9 @@
 import { printf } from "jsr:@std/fmt/printf";
 import { Lexer } from "./compiler/lexer.ts";
 import { Parser } from "./compiler/parser.ts";
-import { bold, red } from "jsr:@std/fmt/colors";
+import { bold, green, red } from "jsr:@std/fmt/colors";
 import { Analyzer } from "./compiler/analyzer.ts";
+import { loadSb3, exportSb3 } from "./sb3.ts";
 
 const code = `\
 package main
@@ -86,8 +87,10 @@ import (
     "looks"
 )
 
+var a = 114514
+var b = "1919810"
+
 func main() {
-    var typeDisplay int = "114514" + 1919810
 }`
 
 const filename = "main.scir"
@@ -111,8 +114,21 @@ if (parser.hasError) {
 
 const analyzer = new Analyzer(ast!)
 analyzer.analyze()
-if (!analyzer.hasError) {
-    console.log(ast!.preview())
+if (analyzer.hasError) {
+    Deno.exit(10)
 }
+console.log(ast!.preview())
 
-// console.log(ast!.generate())
+const ir = ast!.generate()
+
+// console.dir(ir, { depth: 10 })
+
+const sb3 = await loadSb3("./template/Template.sb3")
+
+ir.generate(sb3.builder)
+
+console.dir(sb3.builder.json(), { depth: 10 })
+
+exportSb3(sb3, "./export.sb3")
+
+console.log(green(bold("done")))

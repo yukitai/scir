@@ -2,7 +2,9 @@ import { Block } from "../block.ts";
 import { Builder } from "../builder.ts";
 import { Span } from "../iem.ts";
 import { IR } from "../ir.ts";
-import { IRError } from "./error.ts";
+import { IRDefinition } from "./definition.ts";
+import { nextId } from "../id.ts";
+import { BlockOpcode } from "../block.ts";
 
 class IRGroup extends IR {
 
@@ -14,10 +16,28 @@ class IRGroup extends IR {
     }
 
     override generate(builder: Builder): Block {
-        this.stacks.forEach((stack) => {
-            stack.generate(builder)
+        let block = builder.current.newBlock({
+            id: nextId(),
+            opcode: BlockOpcode.Event_WhenFlagClicked,
+            source: this,
+            inputs: {},
+            fields: {},
+            isShadow: false,
+            isTopLevel: true,
+            parent: null,
+            next: null,
+            states: {},
         })
-        return new IRError(this.span).generate(builder)
+        this.stacks.forEach((stack) => {
+            if (stack instanceof IRDefinition) {
+                stack.generate(builder)
+                return
+            }
+            const nextBlock = stack.generate(builder)
+            builder.current.createConnection(block, nextBlock)
+            block = nextBlock
+        })
+        return block
     }
 }
 

@@ -23,7 +23,7 @@ interface TypeLayout {
     position: ValueStorePosition
     isSized(): boolean
     size(): number
-    raw: Variable[]
+    raw: (Variable | null)[]
 }
 
 interface VariableLayout extends TypeLayout {
@@ -42,6 +42,46 @@ interface ArrayLayout extends TypeLayout {
     getIndexer(): TypeLayout
 }
 
+class NilLayout implements TypeLayout {
+    
+    type: LayoutType
+    position: ValueStorePosition
+    raw: never[]
+
+    constructor () {
+        this.type = LayoutType.Variable
+        this.position = {
+            type: StoreType.Variable,
+            start: 0,
+            offsetSize: 0,
+        }
+        this.raw = []
+    }
+
+    isSized(): boolean { return true }
+    size(): number { return 0 }
+}
+
+class BinaryLayout implements TypeLayout {
+    
+    type: LayoutType
+    position: ValueStorePosition
+    raw: (Variable | null)[]
+
+    constructor () {
+        this.type = LayoutType.Variable
+        this.position = {
+            type: StoreType.Variable,
+            start: 0,
+            offsetSize: 0,
+        }
+        this.raw = [ null ]
+    }
+
+    isSized(): boolean { return true }
+    size(): number { return 1 }
+}
+
 export {
     type ValueStorePosition,
     type TypeLayout,
@@ -50,4 +90,6 @@ export {
     type ArrayLayout,
     StoreType,
     LayoutType,
+    NilLayout,
+    BinaryLayout,
 }

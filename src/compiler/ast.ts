@@ -1,6 +1,16 @@
+import { BlockOpcode } from "../block.ts";
 import { indented, Span } from "../iem.ts";
+import { InputType } from "../input.ts";
 import { IR } from "../ir.ts";
+import { IRBoolean } from "../irs/boolean.ts";
+import { IRCommon } from "../irs/common.ts";
+import { IRConstant } from "../irs/constant.ts";
+import { IRDefinition } from "../irs/definition.ts";
+import { IRError } from "../irs/error.ts";
 import { IRGroup } from "../irs/group.ts";
+import { IRStack } from "../irs/stack.ts";
+import { SetVariable } from "../irs/variable.ts";
+import { TypeLayout, LayoutType, StoreType } from "./layout.ts";
 import { previewToken, Token, TokenType } from "./lexer.ts";
 
 abstract class Node {
@@ -65,6 +75,7 @@ abstract class VariableDeclaration extends Stmt {
 
     tok_name: Token
     type: Type
+    layout: TypeLayout | null
     value: Expr
 
     constructor (
@@ -77,10 +88,16 @@ abstract class VariableDeclaration extends Stmt {
         this.tok_name = tok_name
         this.type = type
         this.value = value
+        this.layout = null
     }
 
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        if (!this.layout) return new IRError()
+        return new SetVariable(
+            this.layout,
+            this.value.generate(),
+            this.span,
+        )
     }
 }
 class LongVariableDeclaration extends VariableDeclaration {
@@ -279,6 +296,7 @@ class NilType extends Type {
 type ArgumentGroup = {
     names: Token[],
     type: Type,
+    layout: TypeLayout | null,
     tok_comma?: Token,
 }
 
@@ -333,6 +351,16 @@ class ArgumentList extends Node {
         result += indented(indent + 1, `tok_rparen: ${previewToken(this.tok_rparen)},\n`)
         return result + indented(indent, ")")
     }
+
+    toRecord (): Record<string, TypeLayout> {
+        const record: Record<string, TypeLayout> = {}
+        for (const group of this.groups) {
+            for (const name of group.names) {
+                record[name.value] = group.layout!
+            }
+        }
+        return record
+    }
 }
 
 class Block extends Stmt {
@@ -354,7 +382,10 @@ class Block extends Stmt {
     }
 
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        return new IRStack(
+            this.stmts.map((stmt) => stmt.generate()),
+            this.span,
+        )
     }
 
     override preview(indent: number): string {
@@ -427,8 +458,18 @@ class FunctionDeclaration extends Node {
         this.body = block
     }
 
+    getIfWarp(): boolean {
+        return true
+    }
+
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        return new IRDefinition(
+            this.tok_name.value,
+            this.args.toRecord(),
+            this.body.generate() as IRStack,
+            this.getIfWarp(),
+            this.span,
+        )
     }
 
     override preview(indent: number): string {
@@ -665,6 +706,19 @@ class ExprBinaryOp extends Expr {
     op: Token
     right: Expr
 
+    static opTable: Record<string, [BlockOpcode, string, string]> = {
+        [TokenType.OAdd]: [BlockOpcode.Operator_Add, "NUM1", "NUM2"],
+        [TokenType.OSub]: [BlockOpcode.Operator_Sub, "NUM1", "NUM2"],
+        [TokenType.OMul]: [BlockOpcode.Operator_Mul, "NUM1", "NUM2"],
+        [TokenType.ODiv]: [BlockOpcode.Operator_Div, "NUM1", "NUM2"],
+        [TokenType.OMod]: [BlockOpcode.Operator_Mod, "NUM1", "NUM2"],
+        [TokenType.OEq]: [BlockOpcode.Operator_Eq, "OPERAND1", "OPERAND2"],
+        [TokenType.OGt]: [BlockOpcode.Operator_Gt, "OPERAND1", "OPERAND2"],
+        [TokenType.OLt]: [BlockOpcode.Operator_Lt, "OPERAND1", "OPERAND2"],
+        [TokenType.OAnd]: [BlockOpcode.Operator_Eq, "OPERAND1", "OPERAND2"],
+        [TokenType.OOr]: [BlockOpcode.Operator_Gt, "OPERAND1", "OPERAND2"],
+    }
+
     constructor (
         left: Expr,
         op: Token,
@@ -691,7 +745,20 @@ class ExprBinaryOp extends Expr {
     }
 
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        const op = ExprBinaryOp.opTable[this.op.type]
+        if (op) {
+            return new IRCommon(
+                op[0],
+                {},
+                {
+                    [op[1]]: this.left.generate(),
+                    [op[2]]: this.right.generate(),
+                },
+                this.span,
+            )
+        } else {
+            return new IRError(this.span)
+        }
     }
 
     override preview(indent: number): string {
@@ -711,6 +778,11 @@ class ExprUnaryOp extends Expr {
 
     op: Token
     expr: Expr
+
+    static opTable: Record<string, [BlockOpcode, string, string]> = {
+        [TokenType.OSub]: [BlockOpcode.Operator_Sub, "NUM1", "NUM2"],
+        [TokenType.ONot]: [BlockOpcode.Operator_Mul, "NUM1", "NUM2"],
+    }
 
     constructor (
         op: Token,
@@ -735,7 +807,29 @@ class ExprUnaryOp extends Expr {
     }
 
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        if (this.op.type === TokenType.OAdd) {
+            return this.expr.generate()
+        } else if (this.op.type === TokenType.OSub) {
+            return new IRCommon(
+                BlockOpcode.Operator_Sub,
+                {},
+                {
+                    "NUM1": new IRConstant(InputType.Number, "0", this.span),
+                    "NUM2": this.expr.generate(),
+                },
+                this.span,
+            )
+        } else if (this.op.type === TokenType.ONot) {
+            return new IRCommon(
+                BlockOpcode.Operator_Not,
+                {},
+                {
+                    "OPERAND": this.expr.generate(),
+                },
+                this.span,
+            )
+        }
+        return new IRError(this.span)
     }
 
     override preview(indent: number): string {
@@ -790,10 +884,6 @@ abstract class ExprLiteral extends Expr {
         return true
     }
 
-    override generate(): IR {
-        throw new Error("Method not implemented.")
-    }
-
     override preview(indent: number): string {
         return indented(indent, `ExprLiteral(\n`)
              + indented(indent + 1, `value: ${previewToken(this.value)}`) + ",\n"
@@ -811,6 +901,14 @@ class ExprLiteralNumber extends ExprLiteral {
     override tryEvaluate(): Value | null {
         return parseFloat(this.value.value)
     }
+
+    override generate(): IR {
+        return new IRConstant(
+            InputType.Number,
+            this.value.value,
+            this.span,
+        )
+    }
 }
 
 class ExprLiteralString extends ExprLiteral {
@@ -821,6 +919,14 @@ class ExprLiteralString extends ExprLiteral {
     override tryEvaluate(): Value | null {
         return eval(this.value.value)
     }
+
+    override generate(): IR {
+        return new IRConstant(
+            InputType.String,
+            eval(this.value.value),
+            this.span,
+        )
+    }
 }
 
 class ExprLiteralBool extends ExprLiteral {
@@ -830,6 +936,13 @@ class ExprLiteralBool extends ExprLiteral {
 
     override tryEvaluate(): Value | null {
         return this.value.type === TokenType.KTrue
+    }
+
+    override generate(): IR {
+        return new IRBoolean(
+            this.value.type === TokenType.KTrue,
+            this.span,
+        )
     }
 }
 
@@ -852,7 +965,7 @@ class ExprGroup extends Expr {
     }
 
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        return this.expr.generate()
     }
 
     override preview(indent: number): string {
@@ -925,6 +1038,7 @@ class ExprCall extends Expr {
 class ExprStmt extends Stmt {
     
     expr: Expr
+    layout: TypeLayout | null
 
     constructor (
         expr: Expr,
@@ -932,10 +1046,18 @@ class ExprStmt extends Stmt {
     ) {
         super(span)
         this.expr = expr
+        this.layout = null
     }
 
     override generate(): IR {
-        throw new Error("Method not implemented.")
+        if (this.layout === null) {
+            return new IRError(this.span)
+        }
+        return new SetVariable(
+            this.layout,
+            this.expr.generate(),
+            this.span,
+        )
     }
 
     override preview(indent: number): string {

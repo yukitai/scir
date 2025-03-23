@@ -1,7 +1,9 @@
+import { bold, green, red } from "jsr:@std/fmt/colors";
 import { createSpanView, iem, LogLevel, Span } from "../iem.ts";
 import { Node, File, FunctionDeclaration, ImportStmt, LongVariableDeclaration, Type, TypeDeclaration, Expr, ExprBinaryOp, ExprCall, ExprDot, ExprGroup, ExprUnaryOp, ExprVariable, BinaryType, ExprLiteral, NilType, ShortVariableDeclaration, Block, VariableDeclaration, ExprStmt } from "./ast.ts";
-import { TypeLayout } from "./layout.ts";
+import { TypeLayout, StoreType, NilLayout, BinaryLayout } from "./layout.ts";
 import { TokenType } from "./lexer.ts";
+import { UnknownType } from "./ast.ts";
 
 interface Describer {
     node?: Node,
@@ -25,7 +27,7 @@ class Analyzer {
         this.hasError = false
     }
 
-    typeError (dest: Type, src: Type, destSpan: Span, srcSpan: Span) {
+    typeError (dest: Type, src: Type, destSpan: Span, _srcSpan: Span) {
         this.hasError = true
         iem(
             LogLevel.Error,
@@ -34,14 +36,15 @@ class Analyzer {
                 [
                     {
                         ...destSpan,
-                        extra: `expected type ${src.formatType()}`
-                    },
-                    {
-                        ...srcSpan,
-                        extra: `required by this expression`
+                        extra: ``
                     },
                 ],
                 0,
+                [
+                    LogLevel.Info,
+                    `${green(bold("expected"))}: ${src.formatType()}
+             ${red(bold("actual"))}:   ${dest.formatType()}`
+                ],
             )
         )
     }
@@ -76,8 +79,38 @@ class Analyzer {
         this.locals.pop()
     }
 
-    layoutFromType (type: Type, global = false): TypeLayout {
-        throw new Error("not implemented yet")
+    layoutFromType (type: Type): TypeLayout {
+        if (type instanceof BinaryType) {
+            return new BinaryLayout()
+        } else if (type instanceof NilType) {
+            iem(
+                LogLevel.Error,
+                "cannot use nil type as value",
+                createSpanView(
+                    [
+                        { ...type.span },
+                    ],
+                    0,
+                ),
+            )
+            return new NilLayout()
+        } else if (type instanceof UnknownType) {
+            if (type.resolved !== null) {
+                return this.layoutFromType(type.resolved)
+            }
+            iem(
+                LogLevel.Error,
+                "cannot use incomplete type here",
+                createSpanView(
+                    [
+                        { ...type.span },
+                    ],
+                    0,
+                ),
+            )
+            return new NilLayout()
+        }
+        return new NilLayout()
     }
 
     analyze() {
@@ -98,7 +131,12 @@ class Analyzer {
         this.globals[func.tok_name.value] = { node: func }
         this.createFrame()
         func.args.groups.forEach((group) => {
+            group.layout = this.layoutFromType(group.type)
             group.names.forEach((name) => {
+                this.locals[this.locals.length - 1][name.value] = {
+                    type: group.type,
+                    layout: group.layout!,
+                }
             })
         })
         this.analyzeBlock(func.body)
@@ -113,6 +151,7 @@ class Analyzer {
                 this.analyzeLocalVariable(stmt)
             } else if (stmt instanceof ExprStmt) {
                 this.analyzeExpr(stmt.expr)
+                stmt.layout = this.layoutFromType(stmt.expr.type)
             }
         })
         this.destroyFrame()
@@ -130,20 +169,23 @@ class Analyzer {
 
     analyzeGlobalVariable(varDecl: LongVariableDeclaration) {
         this.analyzeExpr(varDecl.value)
+        this.constraintType(varDecl.type, varDecl.value.type, varDecl.type.span, varDecl.value.span)
+        varDecl.layout = this.layoutFromType(varDecl.type)
         this.globals[varDecl.tok_name.value] = {
             node: varDecl,
-            layout: this.layoutFromType(varDecl.type, true),
+            layout: varDecl.layout,
         }
-        this.constraintType(varDecl.type, varDecl.value.type, varDecl.type.span, varDecl.value.span)
     }
 
     analyzeLocalVariable(varDecl: VariableDeclaration) {
         this.analyzeExpr(varDecl.value)
+        this.constraintType(varDecl.type, varDecl.value.type, varDecl.type.span, varDecl.value.span)
+        varDecl.layout = this.layoutFromType(varDecl.type)
+        varDecl.layout.position.type = StoreType.Stack
         this.locals[this.locals.length - 1][varDecl.tok_name.value] = {
             node: varDecl,
-            layout: this.layoutFromType(varDecl.type),  
+            layout: varDecl.layout,  
         }
-        this.constraintType(varDecl.type, varDecl.value.type, varDecl.type.span, varDecl.value.span)
     }
 
     analyzeExpr(expr: Expr) {

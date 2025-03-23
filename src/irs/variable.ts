@@ -65,8 +65,10 @@ class GetVariable extends IR {
         const mode = getMode(this.variable.type, this.variable.position.type)
         switch (mode) {
             case getMode(LayoutType.Variable, StoreType.Variable): {
-                const variable = this.variable.raw[0]
-                return VariableInput(variable)
+                if (this.variable.raw[0] === null) {
+                    this.variable.raw[0] = builder.NewVariable(nextId())
+                }
+                return VariableInput(this.variable.raw[0])
             }
         }
         iem(
@@ -109,6 +111,9 @@ class SetVariable extends IR {
         const mode = getMode(this.variable.type, this.variable.position.type)
         switch (mode) {
             case getMode(LayoutType.Variable, StoreType.Variable): {
+                if (this.variable.raw[0] === null) {
+                    this.variable.raw[0] = builder.NewVariable(nextId())
+                }
                 const variable = this.variable.raw[0]
                 const block = builder.current.newBlock({
                     id: nextId(),

@@ -255,6 +255,7 @@ class Parser extends Stream<Token> {
             groups.push({
                 names: names.slice(),
                 type,
+                layout: null,
                 tok_comma: comma !== null ? comma : undefined,
             })
             names.length = 0
